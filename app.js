@@ -34,12 +34,11 @@ app.get('/', (req, res) => {
 app.post('/api/books', (req, res) => {
     const { title, author, genre, price } = req.body;
 
-    // Check if 'price' is a valid number
+
     if (typeof price !== 'number') {
         return res.status(400).json({ error: 'Invalid price value. Please provide a valid number.' });
     }
 
-    // Insert a new book into the books table with the provided ID
     const stmt = db.prepare('INSERT INTO books (title, author, genre, price) VALUES (?, ?, ?, ?)');
     stmt.run(title, author, genre, price, (err) => {
         if (err) {
@@ -60,24 +59,43 @@ app.post('/api/books', (req, res) => {
     stmt.finalize();
 });
 
-app.get('/users',(req,res) => {
-    db.all('SELEct id, name FROM users',(err,rows) => {
-        if(err){
-            console.log("Error Occur");
-            res.send("Error Occur");
+app.get('/api/books/:id', (req, res) => {
+    const bookId = req.params.id;
+
+    db.get('SELECT * FROM books WHERE id = ?', bookId, (err, row) => {
+        if (err) {
+            console.error(err.message);
+            return res.status(500).json({ error: 'Error retrieving book from the database' });
         }
 
-        res.json(rows);
-    });
+        if (!row) {
+            return res.status(404).json({ error: 'Book not found' });
+        }
 
+        const book = Book.fromData(row);
+
+        res.json(book);
+    });
+});
+
+app.get('/api/books', (req, res) => {
+    
+    db.all('SELECT * FROM books', (err, rows) => {
+        if (err) {
+            console.error(err.message);
+            return res.status(500).json({ error: 'Error retrieving books from the database' });
+        }
+
+        const books = rows.map((row) => Book.fromData(row));
+
+        res.json(books);
+    });
 });
 
 
-// DELETE endpoint to delete a user by ID
 app.delete('/users/:id', (req, res) => {
     const userId = req.params.id;
   
-    // Delete the user from 'users' table
     db.run('DELETE FROM users WHERE id = ?', userId, (err) => {
       if (err) {
         console.error(err.message);
