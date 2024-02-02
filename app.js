@@ -1,11 +1,12 @@
 const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
+const body_parser = require('body-parser');
 const app = express();
 //const db = new sqlite3.Database('mydatabase.db');
 const port = 5000;
 
 
-
+const Book = require("./models/Book");
 
 const db = new sqlite3.Database('mydatabase.db', sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE, (err) => {
     if (err) {
@@ -23,12 +24,23 @@ app.get('/', (req, res) => {
     res.send('Hello, Oshayer!');
 });
 
-app.post('/users',(req,res) => {
-    const {name} = req.body;
+app.post('/api/books',(req,res) => {
+    const { id, title, author, genre, price } = req.body;
 
-    const insertStmt = db.prepare('INSERT INTO users (name) VALUES (?)');
-    insertStmt.run(name);
-    insertStmt.finalize();
+    // Insert a new book into the books table with the provided ID
+    const stmt = db.prepare('INSERT INTO books (id, title, author, genre, price) VALUES (?, ?, ?, ?, ?)');
+    stmt.run(id, title, author, genre, price, (err) => {
+        if (err) {
+            console.error(err.message);
+            res.status(500).json({ error: 'Error saving book to the database' });
+        } else {
+            // Create a Book instance using the provided book ID
+            const newBook = new Book(id, title, author, genre, price);
+
+            res.status(201).json(newBook);
+        }
+    });
+    stmt.finalize();
 
     res.status(201).json({ message: 'User created successfully.' });
 
