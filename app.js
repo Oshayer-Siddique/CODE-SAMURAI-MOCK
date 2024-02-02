@@ -2,8 +2,13 @@ const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 const body_parser = require('body-parser');
 const app = express();
+
+
+require('dotenv').config();
+
+
 //const db = new sqlite3.Database('mydatabase.db');
-const port = 5000;
+const port = process.env.PORT;
 
 
 const Book = require("./models/Book");
@@ -103,7 +108,7 @@ app.get('/api/books/:id', (req, res) => {
         }
 
         if (!row) {
-            return res.status(404).json({ error: 'Book not found' });
+            return res.status(404).json({ message: `book with id: ${bookId} was not found` });
         }
 
         const book = Book.fromData(row);
