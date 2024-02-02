@@ -2,8 +2,13 @@ const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 const body_parser = require('body-parser');
 const app = express();
+
+
+require('dotenv').config();
+
+
 //const db = new sqlite3.Database('mydatabase.db');
-const port = 5000;
+const port = process.env.PORT;
 
 
 const Book = require("./models/Book");
