@@ -59,6 +59,40 @@ app.post('/api/books', (req, res) => {
     stmt.finalize();
 });
 
+
+app.put('/api/books/:id', (req, res) => {
+    const bookId = req.params.id;
+    const { title, author, genre, price } = req.body;
+
+    if (price !== undefined && typeof price !== 'number') {
+        return res.status(400).json({ error: 'Invalid price value. Please provide a valid number.' });
+    }
+
+    const stmt = db.prepare('UPDATE books SET title = ?, author = ?, genre = ?, price = ? WHERE id = ?');
+    stmt.run(title, author, genre, price, bookId, (err) => {
+        if (err) {
+            console.error(err.message);
+            return res.status(500).json({ error: 'Error updating book in the database' });
+        }
+
+        if (stmt.changes === 0) {
+            return res.status(404).json({ error: 'Book not found' });
+        }
+
+        db.get('SELECT * FROM books WHERE id = ?', bookId, (selectErr, row) => {
+            if (selectErr) {
+                console.error(selectErr.message);
+                return res.status(500).json({ error: 'Error retrieving updated book from the database' });
+            }
+
+            const updatedBook = Book.fromData(row);
+
+            res.json(updatedBook);
+        });
+    });
+    stmt.finalize();
+});
+
 app.get('/api/books/:id', (req, res) => {
     const bookId = req.params.id;
 
