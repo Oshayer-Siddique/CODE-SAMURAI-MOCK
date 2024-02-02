@@ -112,20 +112,64 @@ app.get('/api/books/:id', (req, res) => {
     });
 });
 
-app.get('/api/books', (req, res) => {
+// app.get('/api/books', (req, res) => {
     
-    db.all('SELECT * FROM books', (err, rows) => {
+//     db.all('SELECT * FROM books', (err, rows) => {
+//         if (err) {
+//             console.error(err.message);
+//             return res.status(500).json({ error: 'Error retrieving books from the database' });
+//         }
+
+//         const books = rows.map((row) => Book.fromData(row));
+
+//         res.json(books);
+//     });
+// });
+
+
+app.get('/api/books', (req, res) => {
+    const { title, author, genre, sort, order } = req.query;
+
+    let query = 'SELECT * FROM books WHERE 1';
+    let params = [];
+
+    // Add search conditions based on provided search fields
+    if (title) {
+        query += ' AND title = ?';
+        params.push(title);
+    }
+    if (author) {
+        query += ' AND author = ?';
+        params.push(author);
+    }
+    if (genre) {
+        query += ' AND genre = ?';
+        params.push(genre);
+    }
+
+    // Add sorting conditions based on provided sorting field and order
+    let orderBy = 'ORDER BY id ASC'; // Default sorting by ID in ascending order
+    if (sort) {
+        orderBy = `ORDER BY ${sort} ${order || 'ASC'}, id ASC`;
+    }
+
+    // Finalize the query
+    query += ` ${orderBy}`;
+
+    // Execute the query
+    db.all(query, params, (err, rows) => {
         if (err) {
             console.error(err.message);
             return res.status(500).json({ error: 'Error retrieving books from the database' });
         }
 
+        // Create Book instances for each row in the result set
         const books = rows.map((row) => Book.fromData(row));
 
-        res.json(books);
+        // Return the result wrapped in a 'books' object
+        res.json({ books });
     });
 });
-
 
 app.delete('/users/:id', (req, res) => {
     const userId = req.params.id;
