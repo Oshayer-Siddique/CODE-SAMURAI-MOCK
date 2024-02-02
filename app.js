@@ -32,33 +32,33 @@ app.get('/', (req, res) => {
 });
 
 app.post('/api/books', (req, res) => {
-    const { title, author, genre, price } = req.body;
+    const { id, title, author, genre, price } = req.body;
 
+    const stmt = db.prepare('INSERT INTO books (id, title, author, genre, price) VALUES (?, ?, ?, ?, ?)');
 
-    if (typeof price !== 'number') {
-        return res.status(400).json({ error: 'Invalid price value. Please provide a valid number.' });
-    }
+    try {
+        stmt.run(id, title, author, genre, price, (err) => {
+            if (err) {
+                if (err.message.includes('UNIQUE constraint failed: books.id')) {
+                    return res.status(409).json({ error: 'Book with the provided ID already exists.' });
+                }
 
-    const stmt = db.prepare('INSERT INTO books (title, author, genre, price) VALUES (?, ?, ?, ?)');
-    stmt.run(title, author, genre, price, (err) => {
-        if (err) {
-            
-            if (err.message.includes('UNIQUE constraint failed: books.id')) {
-                return res.status(409).json({ error: 'Book with the provided ID already exists.' });
+                console.error('Error during stmt.run:', err.message);
+                return res.status(500).json({ error: 'Error saving book to the database' });
             }
 
-            console.error(err.message);
-            return res.status(500).json({ error: 'Error saving book to the database' });
-        }
+            const newBook = new Book(id, title, author, genre, price);
+            console.log('Book inserted successfully:', newBook);
 
-        const bookId = stmt.lastID;
-        const newBook = new Book(bookId, title, author, genre, price);
-
-        res.status(201).json(newBook);
-    });
-    stmt.finalize();
+            res.status(201).json(newBook);
+        });
+    } catch (error) {
+        console.error('Error outside stmt.run:', error.message);
+        res.status(500).json({ error: 'Internal Server Error.' });
+    } finally {
+        stmt.finalize();
+    }
 });
-
 
 app.put('/api/books/:id', (req, res) => {
     const bookId = req.params.id;
@@ -76,7 +76,7 @@ app.put('/api/books/:id', (req, res) => {
         }
 
         if (stmt.changes === 0) {
-            return res.status(404).json({ error: 'Book not found' });
+            return res.status(404).json({ message: `book with id: ${bookId} was not found` });
         }
 
         db.get('SELECT * FROM books WHERE id = ?', bookId, (selectErr, row) => {
@@ -112,20 +112,6 @@ app.get('/api/books/:id', (req, res) => {
     });
 });
 
-// app.get('/api/books', (req, res) => {
-    
-//     db.all('SELECT * FROM books', (err, rows) => {
-//         if (err) {
-//             console.error(err.message);
-//             return res.status(500).json({ error: 'Error retrieving books from the database' });
-//         }
-
-//         const books = rows.map((row) => Book.fromData(row));
-
-//         res.json(books);
-//     });
-// });
-
 
 app.get('/api/books', (req, res) => {
     const { title, author, genre, sort, order } = req.query;
@@ -133,7 +119,6 @@ app.get('/api/books', (req, res) => {
     let query = 'SELECT * FROM books WHERE 1';
     let params = [];
 
-    // Add search conditions based on provided search fields
     if (title) {
         query += ' AND title = ?';
         params.push(title);
@@ -147,26 +132,21 @@ app.get('/api/books', (req, res) => {
         params.push(genre);
     }
 
-    // Add sorting conditions based on provided sorting field and order
-    let orderBy = 'ORDER BY id ASC'; // Default sorting by ID in ascending order
+    let orderBy = 'ORDER BY id ASC'; 
     if (sort) {
         orderBy = `ORDER BY ${sort} ${order || 'ASC'}, id ASC`;
     }
 
-    // Finalize the query
     query += ` ${orderBy}`;
 
-    // Execute the query
     db.all(query, params, (err, rows) => {
         if (err) {
             console.error(err.message);
             return res.status(500).json({ error: 'Error retrieving books from the database' });
         }
 
-        // Create Book instances for each row in the result set
         const books = rows.map((row) => Book.fromData(row));
 
-        // Return the result wrapped in a 'books' object
         res.json({ books });
     });
 });
