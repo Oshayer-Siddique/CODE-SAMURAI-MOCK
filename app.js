@@ -8,15 +8,22 @@ const port = 5000;
 
 const Book = require("./models/Book");
 
-const db = new sqlite3.Database('mydatabase.db', sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE, (err) => {
+const db = new sqlite3.Database('mydatabase.db', (err) => {
     if (err) {
         console.error(err.message);
     } else {
         console.log('Connected to the SQLite database.');
+
+        // Create books table if not exists
+        db.run('CREATE TABLE IF NOT EXISTS books (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, author TEXT, genre TEXT, price REAL)', (createTableErr) => {
+            if (createTableErr) {
+                console.error(createTableErr.message);
+            } else {
+                console.log('Table created successfully.');
+            }
+        });
     }
 });
-
-db.run('CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, name TEXT)');
 
 
 app.use(express.json());
@@ -24,28 +31,33 @@ app.get('/', (req, res) => {
     res.send('Hello, Oshayer!');
 });
 
-app.post('/api/books',(req,res) => {
-    const { id, title, author, genre, price } = req.body;
+app.post('/api/books', (req, res) => {
+    const { title, author, genre, price } = req.body;
+
+    // Check if 'price' is a valid number
+    if (typeof price !== 'number') {
+        return res.status(400).json({ error: 'Invalid price value. Please provide a valid number.' });
+    }
 
     // Insert a new book into the books table with the provided ID
-    const stmt = db.prepare('INSERT INTO books (id, title, author, genre, price) VALUES (?, ?, ?, ?, ?)');
-    stmt.run(id, title, author, genre, price, (err) => {
+    const stmt = db.prepare('INSERT INTO books (title, author, genre, price) VALUES (?, ?, ?, ?)');
+    stmt.run(title, author, genre, price, (err) => {
         if (err) {
-            console.error(err.message);
-            res.status(500).json({ error: 'Error saving book to the database' });
-        } else {
-            // Create a Book instance using the provided book ID
-            const newBook = new Book(id, title, author, genre, price);
+            
+            if (err.message.includes('UNIQUE constraint failed: books.id')) {
+                return res.status(409).json({ error: 'Book with the provided ID already exists.' });
+            }
 
-            res.status(201).json(newBook);
+            console.error(err.message);
+            return res.status(500).json({ error: 'Error saving book to the database' });
         }
+
+        const bookId = stmt.lastID;
+        const newBook = new Book(bookId, title, author, genre, price);
+
+        res.status(201).json(newBook);
     });
     stmt.finalize();
-
-    res.status(201).json({ message: 'User created successfully.' });
-
-
-
 });
 
 app.get('/users',(req,res) => {

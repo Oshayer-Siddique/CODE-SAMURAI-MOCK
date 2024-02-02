@@ -7,9 +7,7 @@ class Book {
         this.price = price;
     }
 
-    // You can add methods here if needed
 
-    // Static method to create a Book instance from a data object
     static fromData(data) {
         const { id, title, author, genre, price } = data;
         return new Book(id, title, author, genre, price);
