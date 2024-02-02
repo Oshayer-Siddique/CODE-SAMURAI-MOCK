@@ -103,7 +103,7 @@ app.get('/api/books/:id', (req, res) => {
         }
 
         if (!row) {
-            return res.status(404).json({ error: 'Book not found' });
+            return res.status(404).json({ message: `book with id: ${bookId} was not found` });
         }
 
         const book = Book.fromData(row);
